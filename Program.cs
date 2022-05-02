@@ -6,7 +6,8 @@ using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<ProductDbContext>();
+builder.Services.AddDbContext<ProductDbContext>(options 
+    => options.UseInMemoryDatabase("ProductsCatalog"));
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.Decorate<IProductRepository, CachedProductRepository>();
@@ -15,7 +16,7 @@ builder.Services.AddDistributedMemoryCache();
 
 var app = builder.Build();
 
-app.MapGet("/", async (IProductRepository productRepository) 
+app.MapGet("/", async (IProductRepository productRepository)
     => await productRepository.GetAllAsync());
 
 app.SeedDatabse();
@@ -51,10 +52,10 @@ class Product
 
 class ProductDbContext : DbContext
 {
-    public DbSet<Product> Products { get; set; } = null!;
+    public ProductDbContext(DbContextOptions<ProductDbContext> options)
+        : base(options){ }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseInMemoryDatabase("ProductsCatalog");
+    public DbSet<Product> Products => Set<Product>();
 }
 
 interface IProductRepository
@@ -92,16 +93,17 @@ class CachedProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> GetAllAsync()
     {
-        var products = await _distriutedCache.GetAsync<IEnumerable<Product>>(cacheKey);
+        var products = await GetCacheAsync(cacheKey);
         if (products is not null) return products;
         products = await _productRepository.GetAllAsync();
-        await SetCahceAsync(products);
+        await SetCahceAsync(cacheKey, products);
         return products;
-
-        
     }
 
-    private async Task SetCahceAsync(IEnumerable<Product> products)
+    private async Task<IEnumerable<Product>?> GetCacheAsync(string cacheKey)
+        => await _distriutedCache.GetAsync<IEnumerable<Product>>(cacheKey);
+
+    private async Task SetCahceAsync(string cacheKey, IEnumerable<Product> products)
     {
         var cacheEntryOptions = new DistributedCacheEntryOptions()
                     .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
