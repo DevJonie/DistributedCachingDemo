@@ -93,17 +93,17 @@ class CachedProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> GetAllAsync()
     {
-        var products = await GetCacheAsync(cacheKey);
+        var products = await GetCachedProductsAsync(cacheKey);
         if (products is not null) return products;
         products = await _productRepository.GetAllAsync();
-        await SetCahceAsync(cacheKey, products);
+        await SetCacheAsync(cacheKey, products);
         return products;
     }
 
-    private async Task<IEnumerable<Product>?> GetCacheAsync(string cacheKey)
+    private async Task<IEnumerable<Product>?> GetCachedProductsAsync(string cacheKey)
         => await _distriutedCache.GetAsync<IEnumerable<Product>>(cacheKey);
 
-    private async Task SetCahceAsync(string cacheKey, IEnumerable<Product> products)
+    private async Task SetCacheAsync(string cacheKey, IEnumerable<Product> products)
     {
         var cacheEntryOptions = new DistributedCacheEntryOptions()
                     .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
