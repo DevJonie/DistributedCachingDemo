@@ -19,7 +19,10 @@ var app = builder.Build();
 app.MapGet("/", async (IProductRepository productRepository)
     => await productRepository.GetAllAsync());
 
-app.SeedDatabse();
+if (app.Environment.IsDevelopment())
+{ 
+    app.SeedDatabse();
+}
 
 app.Run();
 
