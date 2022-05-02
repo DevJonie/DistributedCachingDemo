@@ -7,8 +7,8 @@ using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ProductDbContext>();
+
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
-//The Decorate extensioin method is from the Scrutor Nuget package
 builder.Services.Decorate<IProductRepository, CachedProductRepository>();
 
 builder.Services.AddDistributedMemoryCache();
@@ -19,9 +19,10 @@ app.MapGet("/", async (IProductRepository productRepository)
     => await productRepository.GetAllAsync());
 
 app.SeedDatabse();
+
 app.Run();
 
-static class HostExtensions
+static class IHostExtensions
 {
     public static void SeedDatabse(this IHost app) 
     {
@@ -92,21 +93,23 @@ class CachedProductRepository : IProductRepository
     public async Task<IEnumerable<Product>> GetAllAsync()
     {
         var products = await _distriutedCache.GetAsync<IEnumerable<Product>>(cacheKey);
-        if (products is {Count: > 0}) return products;
+        if (products is not null) return products;
         products = await _productRepository.GetAllAsync();
         await SetCahceAsync(products);
         return products;
 
-        async Task SetCahceAsync(IEnumerable<Product> products)
-        {
-            var cacheEntryOptions = new DistributedCacheEntryOptions()
-                        .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
-            await _distriutedCache.SetAsync(cacheKey, products, cacheEntryOptions);
-        }
+        
+    }
+
+    private async Task SetCahceAsync(IEnumerable<Product> products)
+    {
+        var cacheEntryOptions = new DistributedCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
+        await _distriutedCache.SetAsync(cacheKey, products, cacheEntryOptions);
     }
 }
 
-public static class DistributedCacheExtensions
+static class DistributedCacheExtensions
 {
     public async static Task SetAsync<T>(
         this IDistributedCache distributedCache,
