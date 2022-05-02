@@ -2,10 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 
-//Nuget Packages
-//1. Microsoft.EntityFrameworkCore.InMemory
-//2. Scrutor
-
 //================================Section 2==================================
 
 var builder = WebApplication.CreateBuilder(args);
@@ -62,7 +58,7 @@ class ProductDbContext : DbContext
 
 interface IProductRepository
 {
-    Task<IReadOnlyList<Product>> GetAllAsync();
+    Task<IEnumerable<Product>> GetAllAsync();
 }
 
 class ProductRepository : IProductRepository
@@ -72,7 +68,7 @@ class ProductRepository : IProductRepository
     public ProductRepository(ProductDbContext dbcontext)
         => _dbcontext = dbcontext;
 
-    public async Task<IReadOnlyList<Product>> GetAllAsync()
+    public async Task<IEnumerable<Product>> GetAllAsync()
         => await _dbcontext.Products
             .AsNoTracking()
             .ToListAsync();
@@ -93,15 +89,15 @@ class CachedProductRepository : IProductRepository
         _distriutedCache = distriutedCache;
     }
 
-    public async Task<IReadOnlyList<Product>> GetAllAsync()
+    public async Task<IEnumerable<Product>> GetAllAsync()
     {
-        var products = await _distriutedCache.GetAsync<IReadOnlyList<Product>>(cacheKey);
+        var products = await _distriutedCache.GetAsync<IEnumerable<Product>>(cacheKey);
         if (products is {Count: > 0}) return products;
         products = await _productRepository.GetAllAsync();
         await SetCahceAsync(products);
         return products;
 
-        async Task SetCahceAsync(IReadOnlyList<Product> products)
+        async Task SetCahceAsync(IEnumerable<Product> products)
         {
             var cacheEntryOptions = new DistributedCacheEntryOptions()
                         .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
